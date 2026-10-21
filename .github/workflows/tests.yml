@@ -1,10 +1,14 @@
-name: CloudDeploy CI
+```yaml
+name: CloudDeploy CI/CD
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -26,3 +30,35 @@ jobs:
 
       - name: Run automated tests
         run: python -m pytest -v
+
+  deploy:
+    name: Deploy to AWS EC2
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/clouddeploy_key
+          chmod 600 ~/.ssh/clouddeploy_key
+          ssh-keygen -y -f ~/.ssh/clouddeploy_key > /dev/null
+
+      - name: Deploy application to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i ~/.ssh/clouddeploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=20 \
+            "$EC2_USER@$EC2_HOST" \
+            'cd /home/ubuntu/clouddeploy && git pull --ff-only origin main && .venv/bin/pip install -r requirements.txt && sudo systemctl restart clouddeploy && sudo systemctl is-active --quiet clouddeploy'
+```

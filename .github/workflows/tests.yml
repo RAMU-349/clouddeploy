@@ -1,17 +1,20 @@
-```yaml
+
 name: CloudDeploy CI/CD
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: read
 
 jobs:
   test:
+    name: Run Python Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -38,9 +41,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Set up SSH
         env:
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
@@ -61,4 +61,4 @@ jobs:
             -o ConnectTimeout=20 \
             "$EC2_USER@$EC2_HOST" \
             'cd /home/ubuntu/clouddeploy && git pull --ff-only origin main && .venv/bin/pip install -r requirements.txt && sudo systemctl restart clouddeploy && sudo systemctl is-active --quiet clouddeploy'
-```
+
